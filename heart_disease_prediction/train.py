@@ -7,24 +7,13 @@ from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_sc
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
-# from sklearn.pipeline import Pipeline
+from sklearn.pipeline import Pipeline
 from sklearn.base import ClassifierMixin
 from sklearn.compose import ColumnTransformer
 from typing import Dict
 from prefect import task, get_run_logger
 import os
 from pathlib import Path
-
-# # Path for each file
-# if '__file__' in globals():
-#     project_root = Path(__file__).resolve().parents[1]
-# else:
-#     project_root = Path(os.getcwd()).parent  # fallback for Jupyter
-
-# mlflow_db_path = f"sqlite:///{project_root}/mlruns/mlflow.db"
-# artifact_loc = f"file://{project_root}/mlruns/artifacts/"
-# mlflow.set_tracking_uri(mlflow_db_path)
-
 
 def get_or_create_experiment_id(name: str, artifact_location: str) -> str:
     """
@@ -42,12 +31,12 @@ def get_or_create_experiment_id(name: str, artifact_location: str) -> str:
 
 @task
 def train_model(
-    X_train_transformed: np.ndarray,
-    X_test_transformed: np.ndarray,
+    X_train: np.ndarray,
+    X_test: np.ndarray,
     y_train: pd.Series,
     y_test: pd.Series,
     preprocessor: ColumnTransformer
-) -> Tuple[ClassifierMixin, ColumnTransformer, Dict]:
+) -> Tuple[ClassifierMixin, Pipeline, Dict]:
     """
     Train multiple models, log experiments with MLflow, return best model
     """
@@ -88,8 +77,13 @@ def train_model(
     for name, model in models.items():
         with mlflow.start_run(run_name=name):
 
-            model.fit(X_train_transformed, y_train)
-            y_pred = model.predict(X_test_transformed)
+            # Create a pipeline with preprocessor and model so the datatype doesn't change while inferencing
+            pipeline = Pipeline(steps=[
+                ('preprocessor', preprocessor),
+                ('classifier', model)
+            ])
+            pipeline.fit(X_train, y_train)
+            y_pred = pipeline.predict(X_test)
             acc = accuracy_score(y_test, y_pred)
 
             # Log with MLflow
@@ -105,7 +99,7 @@ def train_model(
             mlflow.log_metrics(metrics)
 
             # Log Model
-            mlflow.sklearn.log_model(model, "model")
+            mlflow.sklearn.log_model(pipeline, "pipeline")
 
             logger.info(f"{name} accuracy: {acc:.4f}")
 
@@ -114,4 +108,4 @@ def train_model(
                 best_model = model
 
     logger.info(f"✅ Best model selected with accuracy {best_score:.4f}")
-    return best_model, preprocessor, paths
+    return best_model, pipeline, paths
