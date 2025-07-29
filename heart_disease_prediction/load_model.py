@@ -41,16 +41,16 @@ def load_model(
     latest_model = versions[0] if versions else None
     model_uri = f"models:/{paths["model_name"]}/{latest_model.version}"
 
-    preprocessor_versions = client.get_latest_versions(name="Preprocessor")
-    latest_preprocessor = preprocessor_versions[0] if preprocessor_versions else None
-    preprocessor_uri = f"models:/Preprocessor/{latest_preprocessor.version}"  # Adjust path if needed
+    # preprocessor_versions = client.get_latest_versions(name="Preprocessor")
+    # latest_preprocessor = preprocessor_versions[0] if preprocessor_versions else None
+    # preprocessor_uri = f"models:/Preprocessor/{latest_preprocessor.version}"  # Adjust path if needed
 
     # Load artifacts using MLflow
     print(f"📦 Downloading model from {model_uri}")
     model = mlflow.sklearn.load_model(model_uri)
 
-    print(f"📦 Downloading preprocessor from {preprocessor_uri}")
-    preprocessor = mlflow.sklearn.load_model(preprocessor_uri)
+    # print(f"📦 Downloading preprocessor from {preprocessor_uri}")
+    # preprocessor = mlflow.sklearn.load_model(preprocessor_uri)
 
     # Ensure output directory exists
     os.makedirs(save_dir, exist_ok=True)
@@ -58,7 +58,7 @@ def load_model(
     combined_path = os.path.join(save_dir, "pipeline_bundle.pkl")
 
     with open(combined_path, "wb") as f:
-        pickle.dump({"model": model, "preprocessor": preprocessor}, f)
+        pickle.dump(model, f)
 
     print(f"✅ Combined model + preprocessor saved at: {combined_path}")
 
