@@ -6,7 +6,7 @@ from mlflow.entities import ViewType
 from sklearn.linear_model import LogisticRegression
 from sklearn.tree import DecisionTreeClassifier
 from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
-from sklearn.compose import ColumnTransformer
+from sklearn.pipeline import Pipeline
 from typing import Union, Dict, Tuple
 from datetime import date
 
@@ -14,7 +14,7 @@ from datetime import date
 
 def register_model(
     # model: Union[RandomForestClassifier, HistGradientBoostingClassifier, LogisticRegression, DecisionTreeClassifier], 
-    preprocessor: ColumnTransformer, 
+    preprocessor: Pipeline, 
     paths: Dict
 ) -> Dict:
     """Register the model and DictVectorizer with MLflow."""
@@ -34,11 +34,11 @@ def register_model(
             order_by=["metrics.accuracy DESC"]
         )[0]
 
-        mlflow.sklearn.log_model(
-            preprocessor, 
-            "preprocessor",
-            registered_model_name="Preprocessor"
-        )
+        # mlflow.sklearn.log_model(
+        #     preprocessor, 
+        #     "preprocessor",
+        #     registered_model_name="Preprocessor"
+        # )
         model_name = f"best_model_{date.today()}"
         result = mlflow.register_model(
             model_uri=f"runs:/{best_run.info.run_id}/model",
