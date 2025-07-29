@@ -43,7 +43,7 @@ def split_data_for_train(df: pd.DataFrame):
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
 
     # Fit and transform the data using the preprocessor
-    X_train_transformed = preprocessor.fit_transform(X_train)
-    X_test_transformed = preprocessor.transform(X_test)
+    # X_train_transformed = preprocessor.fit_transform(X_train)
+    # X_test_transformed = preprocessor.transform(X_test)
 
-    return X_train_transformed, X_test_transformed, y_train, y_test, preprocessor
+    return X_train, X_test, y_train, y_test, preprocessor
