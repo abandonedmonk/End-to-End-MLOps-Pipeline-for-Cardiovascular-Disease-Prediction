@@ -1,0 +1,117 @@
+import numpy as np
+import pandas as pd
+import mlflow
+import mlflow.sklearn
+from typing import Tuple
+from sklearn.metrics import accuracy_score, precision_score, f1_score, recall_score
+from sklearn.linear_model import LogisticRegression
+from sklearn.tree import DecisionTreeClassifier
+from sklearn.ensemble import RandomForestClassifier, HistGradientBoostingClassifier
+# from sklearn.pipeline import Pipeline
+from sklearn.base import ClassifierMixin
+from sklearn.compose import ColumnTransformer
+from typing import Dict
+from prefect import task, get_run_logger
+import os
+from pathlib import Path
+
+# # Path for each file
+# if '__file__' in globals():
+#     project_root = Path(__file__).resolve().parents[1]
+# else:
+#     project_root = Path(os.getcwd()).parent  # fallback for Jupyter
+
+# mlflow_db_path = f"sqlite:///{project_root}/mlruns/mlflow.db"
+# artifact_loc = f"file://{project_root}/mlruns/artifacts/"
+# mlflow.set_tracking_uri(mlflow_db_path)
+
+
+def get_or_create_experiment_id(name: str, artifact_location: str) -> str:
+    """
+    Returns existing experiment_id if found, else creates a new experiment.
+    """
+    experiment = mlflow.get_experiment_by_name(name)
+    print(f"Artifact Location: {artifact_location}")
+
+    if experiment is not None:
+        return experiment.experiment_id
+    else:
+        return mlflow.create_experiment(name=name, artifact_location=artifact_location)
+
+
+
+@task
+def train_model(
+    X_train_transformed: np.ndarray,
+    X_test_transformed: np.ndarray,
+    y_train: pd.Series,
+    y_test: pd.Series,
+    preprocessor: ColumnTransformer
+) -> Tuple[ClassifierMixin, ColumnTransformer, Dict]:
+    """
+    Train multiple models, log experiments with MLflow, return best model
+    """
+
+    logger = get_run_logger()
+
+    # Set up MLflow
+    # Path for each file
+    if '__file__' in globals():
+        project_root = Path(__file__).resolve().parents[1]
+    else:
+        project_root = Path(os.getcwd()).parent  # fallback for Jupyter
+
+    # Final Path
+    paths = {
+        "mlflow_db_path": f"sqlite:///{project_root}/mlruns/mlflow.db",
+        "artifact_loc": f"file://{project_root}/mlruns/artifacts/",
+        "experiment_name": "heart-disease-experiment"
+    }
+
+    experiment_id = get_or_create_experiment_id(name=paths["experiment_name"], artifact_location=paths["artifact_loc"])
+
+    mlflow.set_tracking_uri(paths["mlflow_db_path"])
+    mlflow.set_experiment(experiment_name=paths["experiment_name"])
+    print(f"Experiment ID: {experiment_id}")
+
+    # Define models to train
+    models = {
+        "LogisticRegression": LogisticRegression(max_iter=1000),
+        "RandomForest": RandomForestClassifier(n_estimators=100, random_state=42),
+        "HistGradientBoosting": HistGradientBoostingClassifier(random_state=42),
+        "DecisionTree": DecisionTreeClassifier(ccp_alpha=0.0135, random_state=42) # CCP Alpha found from notebook experiment
+    }
+
+    best_model = None
+    best_score = -1
+
+    for name, model in models.items():
+        with mlflow.start_run(run_name=name):
+
+            model.fit(X_train_transformed, y_train)
+            y_pred = model.predict(X_test_transformed)
+            acc = accuracy_score(y_test, y_pred)
+
+            # Log with MLflow
+            mlflow.log_param("model", name)
+
+            # Calculate and log metrics
+            metrics = {
+                "accuracy": accuracy_score(y_test, y_pred),
+                "precision": precision_score(y_test, y_pred, average="weighted"),
+                "recall": recall_score(y_test, y_pred, average="weighted"),
+                "f1_score": f1_score(y_test, y_pred, average="weighted"),
+            }
+            mlflow.log_metrics(metrics)
+
+            # Log Model
+            mlflow.sklearn.log_model(model, "model")
+
+            logger.info(f"{name} accuracy: {acc:.4f}")
+
+            if acc > best_score:
+                best_score = acc
+                best_model = model
+
+    logger.info(f"✅ Best model selected with accuracy {best_score:.4f}")
+    return best_model, preprocessor, paths
