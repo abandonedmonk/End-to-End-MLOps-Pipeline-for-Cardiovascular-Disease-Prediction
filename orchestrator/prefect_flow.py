@@ -8,8 +8,8 @@ from heart_disease_prediction.load_model import load_model
 def full_pipeline():
     df = get_data(path="./data/raw/processed.cleveland.data")
     X_train, X_test, y_train, y_test, preprocessor = split_data_for_train(df)
-    _, preprocessor, paths = train_model(X_train, X_test, y_train, y_test, preprocessor)
-    paths = register_model(preprocessor, paths)
+    _, pipeline, paths = train_model(X_train, X_test, y_train, y_test, preprocessor)
+    paths = register_model(pipeline, paths)
     load_model(paths)
 
 if __name__ == "__main__":
