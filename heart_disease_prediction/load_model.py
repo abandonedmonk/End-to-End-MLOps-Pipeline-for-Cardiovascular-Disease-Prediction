@@ -11,24 +11,6 @@ def load_model(
     paths: Dict,
     # save_dir: str = "../models/"
 ) -> Tuple[str, str]:
-    """
-    Loads the latest model and preprocessor from MLflow, and saves both in one pickle file.
-
-    Parameters:
-    ----------
-    model_name : str
-        Name of the registered model (e.g., "best_model_2025-07-28")
-    experiment_name : str
-        Name of the MLflow experiment
-    save_dir : str
-        Directory where combined .pkl file will be saved
-
-    Returns:
-    -------
-    str
-        Path to saved combined .pkl file
-    """
-
     assert isinstance(paths["model_name"], str), "model_name must be a string"
     assert isinstance(paths["experiment_name"], str), "experiment_name must be a string"
 
@@ -36,31 +18,27 @@ def load_model(
     mlflow.set_tracking_uri(paths["mlflow_db_path"])
     client = MlflowClient()
 
-    # Get latest version of registered model and preprocessor
-    versions = client.get_latest_versions(name=paths["model_name"])
-    latest_model = versions[0] if versions else None
-    model_uri = f"models:/{paths["model_name"]}/{latest_model.version}"
+    # Get the latest version(s) (filtering by model name only)
+    results = client.search_model_versions(
+        f"name='{paths['model_name']}'")
 
-    # preprocessor_versions = client.get_latest_versions(name="Preprocessor")
-    # latest_preprocessor = preprocessor_versions[0] if preprocessor_versions else None
-    # preprocessor_uri = f"models:/Preprocessor/{latest_preprocessor.version}"  # Adjust path if needed
+    # Optionally filter out only those without any alias set (like stage=None)
+    versions = [v for v in results if not v.aliases]
 
-    # Load artifacts using MLflow
-    print(f"📦 Downloading model from {model_uri}")
-    model = mlflow.sklearn.load_model(model_uri)
+    # Sort by version number (as string)
+    versions = sorted(versions, key=lambda v: int(v.version), reverse=True)
 
-    # print(f"📦 Downloading preprocessor from {preprocessor_uri}")
-    # preprocessor = mlflow.sklearn.load_model(preprocessor_uri)
+    # Take the latest one (optional)
+    latest_version = versions[0] if versions else None
 
-    # Ensure output directory exists
-    os.makedirs(paths["final_save_dir"], exist_ok=True)
+        # Transition to Production
+    client.set_registered_model_alias(
+            name=paths["model_name"],
+            alias="champion",
+            version=latest_version.version,
+        )
 
-    combined_path = os.path.join(paths["final_save_dir"], "pipeline.pkl")
-
-    with open(combined_path, "wb") as f:
-        pickle.dump(model, f)
-
-    print(f"✅ Combined model + preprocessor saved at: {combined_path}")
+    print(f"✅ Model {paths["model_name"]} v{latest_version.version} moved to Production.")
 
 if __name__ == "__main__":
     if '__file__' in globals():
@@ -73,4 +51,3 @@ if __name__ == "__main__":
         "final_save_dir": f"{project_root}/models/"
     }
     load_model(paths)
-    # load_model(paths, save_dir="./models/")
