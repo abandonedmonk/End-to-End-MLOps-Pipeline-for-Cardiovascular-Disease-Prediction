@@ -59,7 +59,8 @@ def train_model(
     paths = {
         "mlflow_db_path": f"sqlite:///{project_root}/mlruns/mlflow.db",
         "artifact_loc": f"file://{project_root}/mlruns/",
-        "experiment_name": "heart-disease-experiment-pipeline"
+        "experiment_name": "heart-disease-experiment-pipeline",
+        "final_save_dir": f"{project_root}/models/"
     }
 
     experiment_id = get_or_create_experiment_id(name=paths["experiment_name"], project_root=project_root)
