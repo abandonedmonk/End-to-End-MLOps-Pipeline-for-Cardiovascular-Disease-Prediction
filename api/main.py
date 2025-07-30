@@ -2,81 +2,43 @@ from fastapi import FastAPI
 from api.schema import PatientData
 import pandas as pd
 import pickle
-from sklearn.compose import ColumnTransformer
-from sklearn.preprocessing import OneHotEncoder
-
+import numpy as np
 app = FastAPI()
 
-with open("../models/pipeline_bundle.pkl", "rb") as f:
-    bundle = pickle.load(f)
-    model = bundle["model"]
-    preprocessor = bundle["preprocessor"]
-
-def prepare_data(data):
-    df = pd.read_json(data)
-    df.columns = [
-        'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal', 'hd'	
-    ]
-    return df
-
-def predict(data: pd.DataFrame):
-    X = preprocessor.transform(data)
-    y_pred = model.predict(X)
-    return y_pred
-
-# @app.post("/predict")
-# def predict_endpoint(data: PatientData):
-#     try:
-#         feature_names = [
-#             'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs',
-#             'restecg', 'thalach', 'exang', 'oldpeak',
-#             'slope', 'ca', 'thal'
-#         ]
-#         df = pd.DataFrame([data.model_dump()], columns=feature_names)
-
-#         # Convert types
-#         df = df.astype({
-#             "age": float, "sex": float, "cp": float, "trestbps": float,
-#             "chol": float, "fbs": float, "restecg": float, "thalach": float,
-#             "exang": float, "oldpeak": float, "slope": float,
-#             "ca": str, "thal": str
-#         })
-#         # Check for missing values
-#         print(df)
-#         X = preprocessor.transform(df)
-#         print("LMAO4")
-#         prediction = model.predict(X)
-#         return {"prediction": int(prediction[0])}
-#     except Exception as e:
-#         print(f"❌ Prediction failed: {e}")
-#         return {"error": str(e)}
-
+# Load the full pipeline (preprocessor + model)
+with open("../models/pipeline.pkl", "rb") as f:
+    pipeline = pickle.load(f)
 
 @app.post("/predict")
 def predict_endpoint(data: PatientData):
     try:
+        # Convert the input to a DataFrame
         feature_names = [
             'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs',
             'restecg', 'thalach', 'exang', 'oldpeak',
             'slope', 'ca', 'thal'
         ]
         df = pd.DataFrame([data.model_dump()], columns=feature_names)
-        # Seperating the Cols based on their types
-        numerical_cols = ['age', 'sex', 'trestbps', 'chol', 'fbs', 'thalach', 'exang', 'oldpeak']
-        categorical_cols = ['restecg', 'slope', 'thal', 'ca', 'cp'] # We will pass this through OneHotEncoder
+        print(f"Raw DataFrame:\n{df}")
+        df = df.astype({
+            "age": int, "sex": int, "cp": int, "trestbps": int,
+            "chol": int, "fbs": int, "restecg": int, "thalach": int,
+            "exang": int, "oldpeak": int, "slope": int,
+            "ca": str, "thal": str
+        })
+        df['thal'] = df['thal'].astype(str).apply(lambda x: f"{float(x):.1f}" if x.replace('.', '', 1).isdigit() else x)
+        df['ca'] = df['ca'].astype(str).apply(lambda x: f"{float(x):.1f}" if x.replace('.', '', 1).isdigit() else x)
 
-        # Making the preprocessor that will be applied on the data
-        preprocessor = ColumnTransformer(
-            transformers=[
-                ('num', 'passthrough', numerical_cols),                  # Keep numerical columns as is
-                ('cat', OneHotEncoder(), categorical_cols)   # One-hot encode categorical columns
-            ]
-        )
+        print(f"📊 Input DataFrame:\n{df}")
+        prediction = pipeline.predict(df)
+        print(f"Prediction: {prediction}")
 
-        X = preprocessor.fit_transform(df)
-        print("LMAO4")
-        prediction = model.predict(X)
-        return {"prediction": int(prediction[0])}
+        prediction_value = int(prediction[0]) if isinstance(prediction, np.ndarray) else int(prediction)
+        if prediction_value == 0:
+            print("No heart disease detected.")
+        else:
+            print("Heart disease detected.")
+        return {"prediction": prediction_value}
     
     except Exception as e:
         print(f"❌ Prediction failed: {e}")
