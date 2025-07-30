@@ -15,19 +15,24 @@ from prefect import task, get_run_logger
 import os
 from pathlib import Path
 
-def get_or_create_experiment_id(name: str, artifact_location: str) -> str:
-    """
-    Returns existing experiment_id if found, else creates a new experiment.
-    """
-    experiment = mlflow.get_experiment_by_name(name)
-    print(f"Artifact Location: {artifact_location}")
+import yaml
+from mlflow.tracking import MlflowClient
 
-    if experiment is not None:
+def get_or_create_experiment_id(name: str, project_root: Path) -> str:
+    """
+    Fully controlled MLflow experiment setup with safe artifact path and meta.yaml recovery.
+    """
+    client = MlflowClient()
+    artifact_path = f"file://{project_root / 'mlruns' / name.replace(' ', '_')}"
+    experiment = client.get_experiment_by_name(name)
+
+    if experiment:
+        print(f"🔍 Checking experiment: {name} at {experiment.artifact_location}")
         return experiment.experiment_id
-    else:
-        return mlflow.create_experiment(name=name, artifact_location=artifact_location)
 
-
+    print(f"🚀 Creating new experiment at {artifact_path}")
+    os.makedirs(artifact_path.replace("file://", ""), exist_ok=True)
+    return client.create_experiment(name=name, artifact_location=artifact_path)
 
 @task
 def train_model(
@@ -53,11 +58,11 @@ def train_model(
     # Final Path
     paths = {
         "mlflow_db_path": f"sqlite:///{project_root}/mlruns/mlflow.db",
-        "artifact_loc": f"file://{project_root}/mlruns/artifacts/",
-        "experiment_name": "heart-disease-experiment"
+        "artifact_loc": f"file://{project_root}/mlruns/",
+        "experiment_name": "heart-disease-experiment-pipeline"
     }
 
-    experiment_id = get_or_create_experiment_id(name=paths["experiment_name"], artifact_location=paths["artifact_loc"])
+    experiment_id = get_or_create_experiment_id(name=paths["experiment_name"], project_root=project_root)
 
     mlflow.set_tracking_uri(paths["mlflow_db_path"])
     mlflow.set_experiment(experiment_name=paths["experiment_name"])
@@ -99,7 +104,10 @@ def train_model(
             mlflow.log_metrics(metrics)
 
             # Log Model
-            mlflow.sklearn.log_model(pipeline, "pipeline")
+            mlflow.sklearn.log_model(
+                sk_model=pipeline,
+                artifact_path="model"
+            )
 
             logger.info(f"{name} accuracy: {acc:.4f}")
 
