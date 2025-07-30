@@ -5,7 +5,7 @@ url = "http://localhost:8000/predict"
 sample_data = {
     "age": 54,
     "sex": 1,
-    "cp": 0,
+    "cp": 1,
     "trestbps": 140,
     "chol": 239,
     "fbs": 0,
@@ -14,7 +14,7 @@ sample_data = {
     "exang": 0,
     "oldpeak": 1.2,
     "slope": 1,
-    "ca": 0,
+    "ca": 2,
     "thal": 3
 }
 
