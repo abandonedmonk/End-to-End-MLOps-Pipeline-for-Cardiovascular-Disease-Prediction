@@ -9,7 +9,7 @@ from pathlib import Path
 
 def load_model(
     paths: Dict,
-    save_dir: str = "../models/"
+    # save_dir: str = "../models/"
 ) -> Tuple[str, str]:
     """
     Loads the latest model and preprocessor from MLflow, and saves both in one pickle file.
@@ -53,9 +53,9 @@ def load_model(
     # preprocessor = mlflow.sklearn.load_model(preprocessor_uri)
 
     # Ensure output directory exists
-    os.makedirs(save_dir, exist_ok=True)
+    os.makedirs(paths["final_save_dir"], exist_ok=True)
 
-    combined_path = os.path.join(save_dir, "pipeline.pkl")
+    combined_path = os.path.join(paths["final_save_dir"], "pipeline.pkl")
 
     with open(combined_path, "wb") as f:
         pickle.dump(model, f)
@@ -66,10 +66,11 @@ if __name__ == "__main__":
     if '__file__' in globals():
         project_root = Path(__file__).resolve().parents[1]
     paths = {
-        "model_name": "best_model_2025-07-29",
+        "model_name": "best_model_2025-07-30",
         "mlflow_db_path": f"sqlite:///{project_root}/mlruns/mlflow.db",
         "artifact_loc": f"file://{project_root}/mlruns/artifacts/",
-        "experiment_name": "heart-disease-experiment-pipeline"
+        "experiment_name": "heart-disease-experiment-pipeline",
+        "final_save_dir": f"{project_root}/models/"
     }
     load_model(paths)
     # load_model(paths, save_dir="./models/")
