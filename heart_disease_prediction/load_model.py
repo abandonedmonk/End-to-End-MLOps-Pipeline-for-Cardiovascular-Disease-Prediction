@@ -5,7 +5,7 @@ import mlflow.sklearn
 from mlflow.tracking import MlflowClient
 from typing import Tuple, Dict
 from datetime import date
-
+from pathlib import Path
 
 def load_model(
     paths: Dict,
@@ -55,10 +55,21 @@ def load_model(
     # Ensure output directory exists
     os.makedirs(save_dir, exist_ok=True)
 
-    combined_path = os.path.join(save_dir, "pipeline_bundle.pkl")
+    combined_path = os.path.join(save_dir, "pipeline.pkl")
 
     with open(combined_path, "wb") as f:
         pickle.dump(model, f)
 
     print(f"✅ Combined model + preprocessor saved at: {combined_path}")
 
+if __name__ == "__main__":
+    if '__file__' in globals():
+        project_root = Path(__file__).resolve().parents[1]
+    paths = {
+        "model_name": "best_model_2025-07-29",
+        "mlflow_db_path": f"sqlite:///{project_root}/mlruns/mlflow.db",
+        "artifact_loc": f"file://{project_root}/mlruns/artifacts/",
+        "experiment_name": "heart-disease-experiment-pipeline"
+    }
+    load_model(paths)
+    # load_model(paths, save_dir="./models/")
