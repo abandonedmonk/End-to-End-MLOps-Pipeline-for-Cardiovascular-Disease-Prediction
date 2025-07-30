@@ -59,3 +59,4 @@ This is MLOps Zoomcamp's Capstone Project
 
 --------
 
+python -m orchestrator.prefect_flow
