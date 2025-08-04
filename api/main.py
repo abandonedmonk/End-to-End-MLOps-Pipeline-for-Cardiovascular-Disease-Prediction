@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from api.schema import PatientData
+from schema import PatientData # Run after cd api
 import pandas as pd
 import pickle
 import numpy as np
