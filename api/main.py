@@ -6,7 +6,11 @@ import numpy as np
 app = FastAPI()
 
 # Load the full pipeline (preprocessor + model)
-with open("../models/pipeline.pkl", "rb") as f:
+# Used in normal usage
+# with open("../models/pipeline.pkl", "rb") as f:
+#     pipeline = pickle.load(f)
+# Used in Dockerfile
+with open("pipeline.pkl", "rb") as f:
     pipeline = pickle.load(f)
 
 @app.post("/predict")
