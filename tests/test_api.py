@@ -1,6 +1,6 @@
 import requests
 
-url = "http://localhost:8000/predict"
+url = "http://0.0.0.0:8000//predict"
 
 sample_data = {
     "age": 54,
