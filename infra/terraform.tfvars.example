@@ -1,0 +1,29 @@
+# terraform.tfvars — Fill in your values, then rename to terraform.tfvars
+# This file should NEVER be committed to git (it contains secrets)
+
+aws_region       = "us-east-1"
+aws_account_id   = "695074562426"
+project_name     = "heart-disease-mlops"
+
+# EC2
+ec2_instance_type = "t2.micro"
+
+# RDS — choose a strong password
+rds_username     = "mlflowadmin"
+rds_password     = "CHANGE_ME_TO_A_STRONG_PASSWORD"
+rds_db_name      = "mlflow"
+
+# Your SSH public key (e.g., contents of ~/.ssh/id_rsa.pub)
+ssh_public_key   = "ssh-rsa AAAA... your-key-here"
+
+# Your public IP in CIDR notation (e.g., "203.0.113.50/32")
+# Find it at https://checkip.amazonaws.com
+your_ip          = "YOUR_IP/32"
+
+# GitHub repo for OIDC trust (leave empty to skip OIDC setup)
+# Format: "org/repo" e.g., "abandonedmonk/MLOps-Zoomcamp-Project"
+github_repo      = ""
+
+# Ports
+mlflow_port      = 5000
+api_port         = 8000

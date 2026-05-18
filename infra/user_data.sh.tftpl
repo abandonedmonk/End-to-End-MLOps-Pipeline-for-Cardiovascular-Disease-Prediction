@@ -1,0 +1,195 @@
+#!/bin/bash
+set -euo pipefail
+
+exec > >(tee /var/log/user-data.log) 2>&1
+
+echo "=== Starting EC2 bootstrap for ${project_name} ==="
+
+echo "--- Adding swap space (1 GB) ---"
+fallocate -l 1G /swapfile
+chmod 600 /swapfile
+mkswap /swapfile
+swapon /swapfile
+echo '/swapfile none swap sw 0 0' >> /etc/fstab
+
+echo "--- Installing system packages ---"
+apt-get update -y
+apt-get upgrade -y
+apt-get install -y \
+  ca-certificates \
+  curl \
+  gnupg \
+  lsb-release \
+  python3 \
+  git \
+  unzip
+
+echo "--- Installing uv ---"
+curl -LsSf https://astral.sh/uv/install.sh | env UV_INSTALL_DIR=/opt/uv sh
+export PATH="/opt/uv:$PATH"
+
+echo "--- Creating Python environment with uv ---"
+uv venv /opt/mlflow-venv --python 3.12
+export VENV=/opt/mlflow-venv/bin
+
+uv pip install --python /opt/mlflow-venv/bin/python \
+  "setuptools<71" \
+  mlflow==2.13.0 \
+  psycopg2-binary \
+  boto3 \
+  scikit-learn \
+  pandas \
+  numpy \
+  awscli \
+  prefect
+
+chown -R ubuntu:ubuntu /opt/mlflow-venv
+
+echo "--- Installing Docker ---"
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo \
+  "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu \
+  $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | \
+  tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+apt-get update -y
+apt-get install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+
+systemctl start docker
+systemctl enable docker
+usermod -aG docker ubuntu
+
+echo "--- Installing CloudWatch Agent ---"
+wget -q https://s3.amazonaws.com/amazoncloudwatch-agent/ubuntu/amd64/latest/amazon-cloudwatch-agent.deb
+dpkg -i -E ./amazon-cloudwatch-agent.deb
+rm -f ./amazon-cloudwatch-agent.deb
+
+cat > /opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json << 'CWCONF'
+{
+  "logs": {
+    "logs_collected": {
+      "files": {
+        "collect_list": [
+          {
+            "file_path": "/var/log/user-data.log",
+            "log_group_name": "/ec2/${project_name}/bootstrap",
+            "log_stream_name": "{instance_id}"
+          }
+        ]
+      }
+    }
+  },
+  "metrics": {
+    "metrics_collected": {
+      "cpu": {
+        "measurement": ["cpu_usage_idle", "cpu_usage_user", "cpu_usage_system"],
+        "metrics_collection_interval": 60
+      },
+      "mem": {
+        "measurement": ["mem_used_percent", "mem_available_percent"],
+        "metrics_collection_interval": 60
+      },
+      "disk": {
+        "measurement": ["disk_used_percent"],
+        "metrics_collection_interval": 60,
+        "resources": ["/"]
+      }
+    }
+  }
+}
+CWCONF
+
+/opt/aws/amazon-cloudwatch-agent/bin/amazon-cloudwatch-agent-ctl \
+  -a fetch-config -m ec2 -s -c file:/opt/aws/amazon-cloudwatch-agent/etc/amazon-cloudwatch-agent.json
+
+echo "--- Creating MLflow systemd service ---"
+cat > /etc/systemd/system/mlflow.service << MLFLOWEOF
+[Unit]
+Description=MLflow Tracking Server
+After=network.target
+
+[Service]
+User=ubuntu
+Group=ubuntu
+Environment=MLFLOW_TRACKING_URI=http://localhost:${mlflow_port}
+Environment=AWS_REGION=${aws_region}
+ExecStart=/opt/mlflow-venv/bin/mlflow server \\
+  --backend-store-uri postgresql://${rds_username}:${rds_password}@${rds_endpoint}/${rds_db_name} \\
+  --default-artifact-root s3://${s3_bucket_name}/artifacts/ \\
+  --host 0.0.0.0 \\
+  --port ${mlflow_port}
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=multi-user.target
+MLFLOWEOF
+
+systemctl daemon-reload
+systemctl enable mlflow
+
+echo "--- Waiting for RDS to be reachable before starting MLflow ---"
+for i in $(seq 1 30); do
+  if $VENV/python3 -c "import psycopg2; psycopg2.connect(host='${rds_endpoint}'.split(':')[0], port=5432, dbname='${rds_db_name}', user='${rds_username}', password='${rds_password}')"; then
+    echo "RDS is reachable!"
+    systemctl start mlflow
+    break
+  fi
+  echo "Waiting for RDS... attempt $i/30"
+  sleep 10
+done
+
+echo "--- Creating Prefect agent systemd service ---"
+cat > /etc/systemd/system/prefect-agent.service << PREFECTEOF
+[Unit]
+Description=Prefect Agent
+After=network.target mlflow.service
+
+[Service]
+User=ubuntu
+Group=ubuntu
+Environment=MLFLOW_TRACKING_URI=http://localhost:${mlflow_port}
+Environment=AWS_REGION=${aws_region}
+Environment=S3_BUCKET=${s3_bucket_name}
+ExecStart=/opt/mlflow-venv/bin/prefect agent start --pool heart-disease
+Restart=on-failure
+RestartSec=15
+
+[Install]
+WantedBy=multi-user.target
+PREFECTEOF
+
+systemctl daemon-reload
+systemctl enable prefect-agent
+
+echo "--- Creating convenience scripts ---"
+
+cat > /home/ubuntu/deploy-api.sh << 'DEPLOYEOF'
+#!/bin/bash
+set -euo pipefail
+AWS_REGION=${aws_region}
+ECR_REPO=$1
+IMAGE_TAG=$${2:-latest}
+
+/opt/mlflow-venv/bin/aws ecr get-login-password --region $AWS_REGION | docker login --username AWS --password-stdin $${ECR_REPO%%/*}
+docker pull $ECR_REPO:$IMAGE_TAG
+
+docker stop heart-api 2>/dev/null || true
+docker rm heart-api 2>/dev/null || true
+
+docker run -d \
+  --name heart-api \
+  --restart unless-stopped \
+  -p ${api_port}:${api_port} \
+  -e MLFLOW_TRACKING_URI=http://localhost:${mlflow_port} \
+  -e AWS_REGION=${aws_region} \
+  -e S3_BUCKET=${s3_bucket_name} \
+  $ECR_REPO:$IMAGE_TAG
+DEPLOYEOF
+chown ubuntu:ubuntu /home/ubuntu/deploy-api.sh
+chmod +x /home/ubuntu/deploy-api.sh
+
+echo "=== Bootstrap complete ==="
