@@ -153,8 +153,10 @@ User=ubuntu
 Group=ubuntu
 Environment=MLFLOW_TRACKING_URI=http://localhost:${mlflow_port}
 Environment=AWS_REGION=${aws_region}
+Environment=PREFECT_API_URL=${prefect_api_url}
+Environment=PREFECT_API_KEY=${prefect_api_key}
 Environment=S3_BUCKET=${s3_bucket_name}
-ExecStart=/opt/mlflow-venv/bin/prefect agent start --pool heart-disease
+ExecStart=/opt/mlflow-venv/bin/prefect agent start --work-queue default
 Restart=on-failure
 RestartSec=15
 

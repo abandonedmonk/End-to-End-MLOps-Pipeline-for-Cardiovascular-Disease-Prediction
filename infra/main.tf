@@ -68,6 +68,8 @@ locals {
       api_port       = var.api_port
       project_name   = var.project_name
       aws_region     = var.aws_region
+      prefect_api_url = var.prefect_api_url
+      prefect_api_key = var.prefect_api_key
     }
   )
 }

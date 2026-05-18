@@ -203,4 +203,4 @@ infra/tfplan
 infra/tfplan.json
 infra/terraform.tfvars
 infra/terraform.tfstate.backup
-infra/.terraform.lock.hcl
+!infra/.terraform.lock.hcl

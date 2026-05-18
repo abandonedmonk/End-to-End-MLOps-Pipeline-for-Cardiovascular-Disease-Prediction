@@ -5,6 +5,7 @@
 PROJECT_NAME = Heart Disease Prediction MLOps
 PYTHON_VERSION = 3.12
 PYTHON_INTERPRETER = python
+S3_BUCKET_NAME ?= heart-disease-mlops-695074562426
 
 #################################################################################
 # COMMANDS                                                                      #
@@ -48,7 +49,7 @@ test:
 ## Download Data from storage system
 .PHONY: sync_data_down
 sync_data_down:
-	aws s3 sync s3://s3://heart-disease-mlops/data/ \
+	aws s3 sync s3://$(S3_BUCKET_NAME)/data/ \
 		data/ 
 	
 
@@ -56,7 +57,7 @@ sync_data_down:
 .PHONY: sync_data_up
 sync_data_up:
 	aws s3 sync data/ \
-		s3://s3://heart-disease-mlops/data 
+		s3://$(S3_BUCKET_NAME)/data 
 	
 
 

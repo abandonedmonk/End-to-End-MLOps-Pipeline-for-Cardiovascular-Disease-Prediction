@@ -72,3 +72,16 @@ variable "api_port" {
   type        = number
   default     = 8000
 }
+
+variable "prefect_api_url" {
+  description = "Prefect API URL for the EC2 agent/worker"
+  type        = string
+  default     = ""
+}
+
+variable "prefect_api_key" {
+  description = "Prefect API key for the EC2 agent/worker"
+  type        = string
+  default     = ""
+  sensitive   = true
+}

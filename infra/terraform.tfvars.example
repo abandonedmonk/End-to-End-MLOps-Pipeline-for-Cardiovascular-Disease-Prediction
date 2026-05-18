@@ -27,3 +27,7 @@ github_repo      = ""
 # Ports
 mlflow_port      = 5000
 api_port         = 8000
+
+# Prefect Cloud (leave blank for local-only experimentation)
+prefect_api_url  = "https://api.prefect.cloud/api/accounts/<account-id>/workspaces/<workspace-id>"
+prefect_api_key  = "<prefect-api-key>"

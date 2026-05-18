@@ -1,19 +1,44 @@
+import os
+from pathlib import Path
+from urllib.parse import urlparse
+from dotenv import load_dotenv
+import boto3
 from prefect import task
 import pandas as pd
 from sklearn.compose import ColumnTransformer
 from sklearn.preprocessing import OneHotEncoder
 from sklearn.model_selection import train_test_split
 
+load_dotenv()
+
+DATA_PATH = os.getenv("DATA_PATH", "../data/raw/processed.cleveland.data")
+LOCAL_DATA_CACHE = Path(os.getenv("LOCAL_DATA_CACHE", "/tmp/heart_disease_prediction"))
+
+
+def _resolve_data_path(path: str) -> str:
+    if not path.startswith("s3://"):
+        return path
+
+    parsed = urlparse(path)
+    bucket = parsed.netloc
+    key = parsed.path.lstrip("/")
+
+    LOCAL_DATA_CACHE.mkdir(parents=True, exist_ok=True)
+    local_path = LOCAL_DATA_CACHE / Path(key).name
+    boto3.client("s3").download_file(bucket, key, str(local_path))
+    return str(local_path)
+
 @task
-def get_data(path: str) -> pd.DataFrame:
-    df = pd.read_csv(path, header=None)
+def get_data(path: str = DATA_PATH) -> pd.DataFrame:
+    local_path = _resolve_data_path(path)
+    df = pd.read_csv(local_path, header=None)
     df.columns = [
         'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal', 'hd'	
     ]
     df_with_no_missing = df.loc[(df['ca'] != '?')
                         &
                         (df['thal'] != '?')]
-    print(f"Final Number of records after preprocessing is {len(df)}")
+    print(f"Final Number of records after preprocessing is {len(df_with_no_missing)}")
     return df_with_no_missing
 
 # Splitting the Data

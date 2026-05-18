@@ -67,7 +67,8 @@ resource "aws_instance" "main" {
   iam_instance_profile   = var.instance_profile_name
   subnet_id              = var.subnet_id
 
-  user_data = var.user_data_script
+  user_data                   = var.user_data_script
+  user_data_replace_on_change = false
 
   root_block_device {
     volume_size = 30

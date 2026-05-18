@@ -14,25 +14,32 @@ from typing import Dict
 from prefect import task, get_run_logger
 import os
 from pathlib import Path
+from dotenv import load_dotenv
 
 import yaml
 from mlflow.tracking import MlflowClient
 
-def get_or_create_experiment_id(name: str, project_root: Path) -> str:
+load_dotenv()
+
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI", f"sqlite:///{PROJECT_ROOT}/mlruns/mlflow.db")
+MLFLOW_ARTIFACT_ROOT = os.getenv("MLFLOW_ARTIFACT_ROOT", f"file://{PROJECT_ROOT}/mlruns/")
+EXPERIMENT_NAME = os.getenv("MLFLOW_EXPERIMENT_NAME", "heart-disease-experiment-pipeline")
+
+def get_or_create_experiment_id(name: str, artifact_root: str) -> str:
     """
     Fully controlled MLflow experiment setup with safe artifact path and meta.yaml recovery.
     """
     client = MlflowClient()
-    artifact_path = f"file://{project_root / 'mlruns' / name.replace(' ', '_')}"
     experiment = client.get_experiment_by_name(name)
 
     if experiment:
         print(f"🔍 Checking experiment: {name} at {experiment.artifact_location}")
         return experiment.experiment_id
 
-    print(f"🚀 Creating new experiment at {artifact_path}")
-    os.makedirs(artifact_path.replace("file://", ""), exist_ok=True)
-    return client.create_experiment(name=name, artifact_location=artifact_path)
+    print(f"🚀 Creating new experiment at {artifact_root}")
+    os.makedirs(artifact_root.replace("file://", ""), exist_ok=True)
+    return client.create_experiment(name=name, artifact_location=artifact_root)
 
 @task
 def train_model(
@@ -40,13 +47,16 @@ def train_model(
     X_test: np.ndarray,
     y_train: pd.Series,
     y_test: pd.Series,
-    preprocessor: ColumnTransformer
+    preprocessor: ColumnTransformer,
+    config: Dict | None = None,
 ) -> Tuple[ClassifierMixin, Pipeline, Dict]:
     """
     Train multiple models, log experiments with MLflow, return best model
     """
 
     logger = get_run_logger()
+
+    config = config or {}
 
     # Set up MLflow
     # Path for each file
@@ -55,17 +65,21 @@ def train_model(
     else:
         project_root = Path(os.getcwd()).parent  # fallback for Jupyter
 
-    # Final Path
     paths = {
-        "mlflow_db_path": f"sqlite:///{project_root}/mlruns/mlflow.db",
-        "artifact_loc": f"file://{project_root}/mlruns/",
-        "experiment_name": "heart-disease-experiment-pipeline",
-        "final_save_dir": f"{project_root}/models/"
+        "mlflow_tracking_uri": config.get("mlflow_tracking_uri", MLFLOW_TRACKING_URI),
+        "mlflow_artifact_root": config.get("mlflow_artifact_root", MLFLOW_ARTIFACT_ROOT),
+        "experiment_name": config.get("experiment_name", EXPERIMENT_NAME),
+        "model_name": config.get("model_name"),
+        "data_path": config.get("data_path"),
+        "final_save_dir": f"{project_root}/models/",
     }
 
-    experiment_id = get_or_create_experiment_id(name=paths["experiment_name"], project_root=project_root)
+    paths["mlflow_db_path"] = paths["mlflow_tracking_uri"]
+    paths["artifact_loc"] = paths["mlflow_artifact_root"]
 
-    mlflow.set_tracking_uri(paths["mlflow_db_path"])
+    experiment_id = get_or_create_experiment_id(name=paths["experiment_name"], artifact_root=paths["mlflow_artifact_root"])
+
+    mlflow.set_tracking_uri(paths["mlflow_tracking_uri"])
     mlflow.set_experiment(experiment_name=paths["experiment_name"])
     print(f"Experiment ID: {experiment_id}")
 
