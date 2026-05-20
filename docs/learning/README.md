@@ -26,6 +26,16 @@ Practical notes from migrating a Heart Disease Prediction MLOps pipeline from lo
 | [04-uv-local-dev.md](phase3/04-uv-local-dev.md) | uv setup, venv creation, setuptools fix locally, pyproject.toml |
 | [05-terraform-drift-and-safety.md](phase3/05-terraform-drift-and-safety.md) | user_data_replace_on_change, state drift, lock files, Prefect agent env vars |
 
+## Phase 4 — FastAPI Deployment on EC2 ✅ COMPLETE
+
+| File | Topic |
+|------|-------|
+| [Phase 4 Overview](phase4/phase4-overview.md) | Where this phase fits in the project architecture |
+| [01 — Containerizing for Production](phase4/01-containerizing-for-production.md) | Multi-stage Docker builds, builder vs runtime stages, build context |
+| [02 — Loading Models from MLflow](phase4/02-loading-models-from-mlflow.md) | Model registry loading, champion aliases, /health endpoint, fallbacks |
+| [03 — Sizing and Optimization](phase4/03-sizing-and-optimization.md) | .dockerignore, mlflow-skinny, image size reduction, ECR costs |
+| [04 — Deployment to EC2](phase4/04-deployment-to-ec2.md) | **Full deployment guide**: ECR push, EC2 deploy, systemd, troubleshooting |
+
 ---
 
 ## How to Use These

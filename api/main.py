@@ -1,43 +1,68 @@
-from fastapi import FastAPI
-from schema import PatientData # Run after cd api
-import pandas as pd
-import numpy as np
 import os
-from dotenv import load_dotenv
+from datetime import date
+from typing import Any
+
+import boto3
 import mlflow
 import mlflow.pyfunc
+import numpy as np
+import pandas as pd
+from dotenv import load_dotenv
+from fastapi import FastAPI
+
+from schema import PatientData
 
 load_dotenv()
 
 app = FastAPI()
 
-# Read configuration from environment
 MLFLOW_TRACKING_URI = os.getenv("MLFLOW_TRACKING_URI")
-MODEL_NAME = os.getenv("MODEL_NAME", "heart-disease-model")
+MODEL_NAME = os.getenv("MODEL_NAME", f"best_model_{date.today().isoformat()}")
 AWS_REGION = os.getenv("AWS_REGION")
 
 if MLFLOW_TRACKING_URI:
     mlflow.set_tracking_uri(MLFLOW_TRACKING_URI)
 
-# Attempt to load model from MLflow registry (Production stage)
-pipeline = None
-model_uri = f"models:/{MODEL_NAME}/Production"
-try:
-    pipeline = mlflow.pyfunc.load_model(model_uri)
-    print(f"Loaded model from MLflow: {model_uri}")
-except Exception as e:
-    print(f"Failed to load model from MLflow ({model_uri}): {e}")
+if AWS_REGION:
+    boto3.setup_default_session(region_name=AWS_REGION)
+
+def _load_pipeline() -> tuple[Any | None, str | None]:
+    model_uris = [
+        f"models:/{MODEL_NAME}@champion",
+        f"models:/{MODEL_NAME}/Production",
+    ]
+
+    last_error: Exception | None = None
+    for model_uri in model_uris:
+        try:
+            return mlflow.pyfunc.load_model(model_uri), model_uri
+        except Exception as exc:
+            last_error = exc
+
+    print(f"Failed to load model from MLflow ({model_uris}): {last_error}")
+    return None, None
+
+
+pipeline, loaded_model_uri = _load_pipeline()
+
+if loaded_model_uri:
+    print(f"Loaded model from MLflow: {loaded_model_uri}")
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok", "model_loaded": pipeline is not None}
+    return {
+        "status": "ok" if pipeline is not None else "degraded",
+        "model_loaded": pipeline is not None,
+        "model_name": MODEL_NAME,
+        "tracking_uri_set": bool(MLFLOW_TRACKING_URI),
+    }
 
 
 @app.post("/predict")
 def predict_endpoint(data: PatientData):
     if pipeline is None:
-        return {"error": "Model not loaded"}
+        return {"error": "Model not loaded from MLflow"}
 
     try:
         feature_names = [

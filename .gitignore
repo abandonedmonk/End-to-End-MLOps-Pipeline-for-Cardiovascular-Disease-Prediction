@@ -204,3 +204,4 @@ infra/tfplan.json
 infra/terraform.tfvars
 infra/terraform.tfstate.backup
 !infra/.terraform.lock.hcl
+.vscode
