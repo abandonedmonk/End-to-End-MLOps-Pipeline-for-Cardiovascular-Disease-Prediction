@@ -143,26 +143,29 @@ for i in $(seq 1 30); do
 done
 
 echo "--- Creating Prefect agent systemd service ---"
-cat > /etc/systemd/system/prefect-agent.service << PREFECTEOF
+sudo tee /etc/systemd/system/prefect-agent.service > /dev/null <<EOF
 [Unit]
 Description=Prefect Agent
 After=network.target mlflow.service
 
 [Service]
+Type=simple
 User=ubuntu
 Group=ubuntu
-Environment=MLFLOW_TRACKING_URI=http://localhost:${mlflow_port}
-Environment=AWS_REGION=${aws_region}
-Environment=PREFECT_API_URL=${prefect_api_url}
-Environment=PREFECT_API_KEY=${prefect_api_key}
-Environment=S3_BUCKET=${s3_bucket_name}
-ExecStart=/opt/mlflow-venv/bin/prefect agent start --work-queue default
-Restart=on-failure
-RestartSec=15
+WorkingDirectory=/home/ubuntu
+Environment="PATH=/opt/mlflow-venv/bin:/usr/local/bin:/usr/bin:/bin"
+Environment="PREFECT_API_URL=${prefect_api_url}"
+Environment="PREFECT_API_KEY=${prefect_api_key}"
+Environment="MLFLOW_TRACKING_URI=http://10.0.0.186:5000"
+Environment="AWS_REGION=us-east-1"
+Environment="S3_BUCKET=heart-disease-mlops-695074562426"
+ExecStart=/opt/mlflow-venv/bin/prefect worker start --pool default --work-queue default
+Restart=always
+RestartSec=10
 
 [Install]
 WantedBy=multi-user.target
-PREFECTEOF
+EOF
 
 systemctl daemon-reload
 systemctl enable prefect-agent

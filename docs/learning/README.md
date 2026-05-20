@@ -36,6 +36,16 @@ Practical notes from migrating a Heart Disease Prediction MLOps pipeline from lo
 | [03 — Sizing and Optimization](phase4/03-sizing-and-optimization.md) | .dockerignore, mlflow-skinny, image size reduction, ECR costs |
 | [04 — Deployment to EC2](phase4/04-deployment-to-ec2.md) | **Full deployment guide**: ECR push, EC2 deploy, systemd, troubleshooting |
 
+## Phase 5 — Prefect Agent on EC2 ✅ COMPLETE (Local Server)
+
+| File | Topic |
+|------|-------|
+| [Phase 5 Overview](phase5/phase5-overview.md) | Pipeline orchestration, agent setup, what was done |
+| [01 — Prefect Agent Setup](phase5/01-prefect-agent-setup.md) | Systemd service, `worker` vs `agent`, environment variables |
+| [02 — Connecting to Prefect Cloud](phase5/02-connecting-to-prefect-cloud.md) | Moving from local server to Prefect Cloud coordination |
+| [03 — Running Pipelines End-to-End](phase5/03-running-pipelines-end-to-end.md) | Complete workflow: trigger → execute → register → serve |
+| [04 — Troubleshooting Prefect](phase5/04-troubleshooting-prefect.md) | Common errors and fixes for agent, Cloud, pipeline execution |
+
 ---
 
 ## How to Use These
