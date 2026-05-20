@@ -37,3 +37,13 @@ variable "vpc_id" {
 variable "subnet_id" {
   type = string
 }
+
+variable "prefect_api_url" {
+  type    = string
+  default = ""
+}
+
+variable "prefect_api_key" {
+  type    = string
+  default = ""
+}

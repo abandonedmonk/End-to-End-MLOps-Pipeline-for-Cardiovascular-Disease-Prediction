@@ -39,6 +39,8 @@ module "ec2" {
   user_data_script      = local.user_data_rendered
   vpc_id                = module.vpc.vpc_id
   subnet_id             = module.vpc.subnet_ids[0]
+  prefect_api_url = var.prefect_api_url
+  prefect_api_key = var.prefect_api_key
 
   depends_on = [module.iam]
 }
