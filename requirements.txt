@@ -3,12 +3,14 @@
 setuptools<71
 fastapi==0.116.1
 boto3
+evidently==0.4.0
 matplotlib==3.10.3
 mlflow==2.13.0
 numpy==1.26.4
 pandas==2.2.2
 prefect==3.4.10
 pydantic==2.11.7
+pyarrow
 pytest==8.4.1
 PyYAML==6.0.2
 python-dotenv

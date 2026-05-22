@@ -57,6 +57,16 @@ module "rds" {
   vpc_id                = module.vpc.vpc_id
 }
 
+module "monitoring" {
+  source          = "./modules/monitoring"
+  project_name    = var.project_name
+  aws_region      = var.aws_region
+  ec2_instance_id = module.ec2.instance_id
+  drift_threshold = var.drift_threshold
+
+  depends_on = [module.ec2]
+}
+
 locals {
   user_data_rendered = templatefile(
     "${path.module}/user_data.sh.tftpl",

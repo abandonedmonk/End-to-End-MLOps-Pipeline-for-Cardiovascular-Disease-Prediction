@@ -85,3 +85,9 @@ variable "prefect_api_key" {
   default     = ""
   sensitive   = true
 }
+
+variable "drift_threshold" {
+  description = "CloudWatch alarm threshold for data drift score"
+  type        = number
+  default     = 0.3
+}

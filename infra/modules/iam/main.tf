@@ -53,6 +53,36 @@ resource "aws_iam_role_policy_attachment" "ec2_cloudwatch" {
   policy_arn = "arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy"
 }
 
+resource "aws_iam_role_policy_attachment" "ec2_monitoring" {
+  role       = aws_iam_role.ec2_instance.name
+  policy_arn = aws_iam_policy.ec2_monitoring.arn
+}
+
+resource "aws_iam_policy" "ec2_monitoring" {
+  name        = "${var.project_name}-ec2-monitoring-policy"
+  description = "CloudWatch permissions for application drift monitoring"
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:PutMetricData",
+        ]
+        Resource = "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "logs:FilterLogEvents",
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
 resource "aws_iam_role_policy_attachment" "ec2_ssm" {
   role       = aws_iam_role.ec2_instance.name
   policy_arn = "arn:aws:iam::aws:policy/AmazonSSMManagedInstanceCore"
