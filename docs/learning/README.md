@@ -46,6 +46,18 @@ Practical notes from migrating a Heart Disease Prediction MLOps pipeline from lo
 | [03 — Running Pipelines End-to-End](phase5/03-running-pipelines-end-to-end.md) | Complete workflow: trigger → execute → register → serve |
 | [04 — Troubleshooting Prefect](phase5/04-troubleshooting-prefect.md) | Common errors and fixes for agent, Cloud, pipeline execution |
 
+## Phase 6 — Monitoring with Evidently + CloudWatch ✅ COMPLETE
+
+| File | Topic |
+|------|-------|
+| [Phase 6 Overview](phase6/README.md) | Architecture, quick start, verification checklist |
+| [Phase 6 Implementation Summary](phase6/phase6-overview.md) | What was built, how it works, key decisions |
+| [01 — Evidently Drift Detection](phase6/01-evidently-drift-detection.md) | Setting up Evidently, reference data, drift reports, S3 storage |
+| [02 — CloudWatch Metrics](phase6/02-cloudwatch-metrics.md) | Custom metrics, namespace design, metric pushing from Python |
+| [03 — Infrastructure Monitoring](phase6/03-infrastructure-monitoring.md) | Dashboards, alarms, SNS notifications via Terraform |
+| [04 — Pipeline Integration](phase6/04-pipeline-integration.md) | Adding monitoring to Prefect flows, task design, error handling |
+| [05 — Troubleshooting Monitoring](phase6/05-troubleshooting-monitoring.md) | Common errors, debugging techniques, fixes |
+
 ---
 
 ## How to Use These
@@ -61,7 +73,9 @@ Practical notes from migrating a Heart Disease Prediction MLOps pipeline from lo
 | Service | URL |
 |---------|-----|
 | MLflow UI | http://32.196.26.238:5000 |
-| FastAPI (after Phase 4) | http://32.196.26.238:8000 |
+| FastAPI Health | http://32.196.26.238:8000/health |
+| FastAPI Swagger | http://32.196.26.238:8000/docs |
+| CloudWatch Dashboard | AWS Console → CloudWatch → Dashboards → heart-disease-mlops |
 | AWS Console | https://console.aws.amazon.com |
 | Prefect Cloud | https://app.prefect.cloud |
 
