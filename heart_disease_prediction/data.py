@@ -35,11 +35,10 @@ def get_data(path: str = DATA_PATH) -> pd.DataFrame:
     df.columns = [
         'age', 'sex', 'cp', 'trestbps', 'chol', 'fbs', 'restecg', 'thalach', 'exang', 'oldpeak', 'slope', 'ca', 'thal', 'hd'	
     ]
-    df_with_no_missing = df.loc[(df['ca'] != '?')
-                        &
-                        (df['thal'] != '?')]
-    print(f"Final Number of records after preprocessing is {len(df_with_no_missing)}")
-    return df_with_no_missing
+    y_not_zero = df["hd"] > 0
+    df.loc[y_not_zero, "hd"] = 1
+    print(f"Final Number of records after loading is {len(df)}")
+    return df
 
 # Splitting the Data
 @task

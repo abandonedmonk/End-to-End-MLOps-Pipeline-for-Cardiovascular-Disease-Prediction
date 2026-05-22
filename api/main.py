@@ -10,7 +10,10 @@ import pandas as pd
 from dotenv import load_dotenv
 from fastapi import FastAPI
 
-from schema import PatientData
+try:
+    from api.schema import PatientData
+except ImportError:
+    from schema import PatientData
 
 load_dotenv()
 
@@ -52,7 +55,7 @@ if loaded_model_uri:
 @app.get("/health")
 def health():
     return {
-        "status": "ok" if pipeline is not None else "degraded",
+        "status": "ok",
         "model_loaded": pipeline is not None,
         "model_name": MODEL_NAME,
         "tracking_uri_set": bool(MLFLOW_TRACKING_URI),
@@ -84,7 +87,13 @@ def predict_endpoint(data: PatientData):
 
         prediction = pipeline.predict(df)
         prediction_value = int(prediction[0]) if isinstance(prediction, (list, np.ndarray)) else int(prediction)
-        return {"prediction": prediction_value}
+        response = {"prediction": prediction_value}
+
+        if hasattr(pipeline, "predict_proba"):
+            probabilities = pipeline.predict_proba(df)
+            response["probability"] = float(probabilities[0][prediction_value])
+
+        return response
 
     except Exception as e:
         print(f"❌ Prediction failed: {e}")

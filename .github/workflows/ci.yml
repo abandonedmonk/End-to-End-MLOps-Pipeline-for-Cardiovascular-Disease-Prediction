@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main, aws_migration]
+  pull_request:
+    branches: [main, aws_migration]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install linting tools
+        run: |
+          pip install flake8 black isort
+
+      - name: Run flake8
+        run: |
+          flake8 heart_disease_prediction/ api/ monitoring/ --count --select=E9,F63,F7,F82 --show-source --statistics
+          flake8 heart_disease_prediction/ api/ monitoring/ --count --exit-zero --max-complexity=10 --max-line-length=127 --statistics
+
+      - name: Run black check
+        run: |
+          black --check heart_disease_prediction/ api/ monitoring/ || true
+
+      - name: Run isort check
+        run: |
+          isort --check-only heart_disease_prediction/ api/ monitoring/ --profile black || true
+
+      - name: Install test dependencies
+        run: |
+          pip install -r requirements.txt
+          pip install pytest-cov pytest-asyncio httpx moto
+
+      - name: Run test suite
+        run: |
+          pytest --cov=heart_disease_prediction --cov=monitoring --cov=api --cov-report=term-missing --cov-fail-under=80 tests/

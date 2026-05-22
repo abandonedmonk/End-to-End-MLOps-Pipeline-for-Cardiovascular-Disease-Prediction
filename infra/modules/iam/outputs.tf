@@ -7,5 +7,5 @@ output "ec2_role_arn" {
 }
 
 output "github_actions_role_arn" {
-  value = var.github_repo != "" ? aws_iam_role.github_actions[0].arn : ""
+  value = var.github_actions_enabled && var.github_repo != "" ? aws_iam_role.github_actions[0].arn : ""
 }

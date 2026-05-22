@@ -93,21 +93,16 @@ resource "aws_iam_instance_profile" "ec2" {
   role = aws_iam_role.ec2_instance.name
 }
 
-data "tls_certificate" "github_oidc" {
-  count = var.github_repo != "" ? 1 : 0
-  url   = "https://token.actions.githubusercontent.com/.well-known/openid-configuration"
-}
-
 resource "aws_iam_openid_connect_provider" "github" {
-  count = var.github_repo != "" ? 1 : 0
+  count = var.github_actions_enabled && var.github_repo != "" ? 1 : 0
 
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.github_oidc[0].certificates[0].sha1_fingerprint]
+  thumbprint_list = ["6938fd4e98bab03faadb97b34396831e3780aea1"]
 }
 
 data "aws_iam_policy_document" "github_oidc_assume_role" {
-  count = var.github_repo != "" ? 1 : 0
+  count = var.github_actions_enabled && var.github_repo != "" ? 1 : 0
 
   statement {
     effect = "Allow"
@@ -132,13 +127,13 @@ data "aws_iam_policy_document" "github_oidc_assume_role" {
 }
 
 resource "aws_iam_role" "github_actions" {
-  count              = var.github_repo != "" ? 1 : 0
+  count              = var.github_actions_enabled && var.github_repo != "" ? 1 : 0
   name               = "${var.project_name}-github-actions"
   assume_role_policy = data.aws_iam_policy_document.github_oidc_assume_role[0].json
 }
 
 resource "aws_iam_policy" "github_actions" {
-  count       = var.github_repo != "" ? 1 : 0
+  count       = var.github_actions_enabled && var.github_repo != "" ? 1 : 0
   name        = "${var.project_name}-github-actions-policy"
   description = "Permissions for GitHub Actions CI/CD"
 
@@ -148,7 +143,6 @@ resource "aws_iam_policy" "github_actions" {
       {
         Effect = "Allow"
         Action = [
-          "ecr:GetAuthorizationToken",
           "ecr:BatchCheckLayerAvailability",
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
@@ -157,7 +151,14 @@ resource "aws_iam_policy" "github_actions" {
           "ecr:UploadLayerPart",
           "ecr:CompleteLayerUpload",
         ]
-        Resource = ["*"]
+        Resource = [var.ecr_repository_arn]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "ecr:GetAuthorizationToken",
+        ]
+        Resource = "*"
       },
       {
         Effect = "Allow"
@@ -174,6 +175,13 @@ resource "aws_iam_policy" "github_actions" {
       {
         Effect = "Allow"
         Action = [
+          "sns:Publish",
+        ]
+        Resource = var.sns_topic_arn != "" ? var.sns_topic_arn : "*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
           "ssm:SendCommand",
           "ssm:GetCommandInvocation",
         ]
@@ -185,13 +193,29 @@ resource "aws_iam_policy" "github_actions" {
           "ec2:DescribeInstances",
         ]
         Resource = ["*"]
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "cloudwatch:*",
+          "dynamodb:*",
+          "ec2:*",
+          "ecr:*",
+          "iam:*",
+          "logs:*",
+          "rds:*",
+          "s3:*",
+          "sns:*",
+          "sts:GetCallerIdentity",
+        ]
+        Resource = "*"
       }
     ]
   })
 }
 
 resource "aws_iam_role_policy_attachment" "github_actions" {
-  count      = var.github_repo != "" ? 1 : 0
+  count      = var.github_actions_enabled && var.github_repo != "" ? 1 : 0
   role       = aws_iam_role.github_actions[0].name
   policy_arn = aws_iam_policy.github_actions[0].arn
 }

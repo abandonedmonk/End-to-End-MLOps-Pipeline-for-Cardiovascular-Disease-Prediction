@@ -144,14 +144,51 @@ celerybeat.pid
 # SageMath parsed files
 *.sage.py
 
-# Environments
+# Environments - NEVER commit .env files with secrets!
 .env
+.env.local
+.env.*.local
+.env.production
+.env.staging
+.envrc
 .venv
 env/
 venv/
 ENV/
 env.bak/
 venv.bak/
+
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+*.priv
+id_rsa
+id_dsa
+id_ecdsa
+id_ed25519
+.aws/
+.boto
+*.aws-credentials
+aws-credentials.json
+service-account.json
+gcp-credentials.json
+google-credentials.json
+
+# SSH
+.ssh/
+known_hosts
+authorized_keys
+
+# Pre-commit
+.pre-commit-config-local.yaml
+
+# Secret scanning baseline (committed intentionally to track known non-secrets)
+# .secrets.baseline SHOULD be committed
 
 # Spyder project settings
 .spyderproject

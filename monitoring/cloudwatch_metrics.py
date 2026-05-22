@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import os
 
 import boto3
 
@@ -24,6 +25,7 @@ def push_monitoring_metrics(
 ) -> None:
     config = get_config()
     now = datetime.now(timezone.utc)
+    dimensions = [{"Name": "ModelName", "Value": os.getenv("MODEL_NAME", "heart-disease")}]
 
     _cloudwatch_client().put_metric_data(
         Namespace=config.cloudwatch_namespace,
@@ -33,18 +35,21 @@ def push_monitoring_metrics(
                 "Value": drift_score,
                 "Unit": "None",
                 "Timestamp": now,
+                "Dimensions": dimensions,
             },
             {
                 "MetricName": "FastAPIRequestCount",
                 "Value": prediction_count,
                 "Unit": "Count",
                 "Timestamp": now,
+                "Dimensions": dimensions,
             },
             {
                 "MetricName": "FastAPI5xxErrorCount",
                 "Value": error_5xx_count,
                 "Unit": "Count",
                 "Timestamp": now,
+                "Dimensions": dimensions,
             },
         ],
     )

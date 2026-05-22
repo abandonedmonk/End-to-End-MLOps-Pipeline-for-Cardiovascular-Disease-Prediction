@@ -1,7 +1,7 @@
 data "aws_caller_identity" "current" {}
 
 module "vpc" {
-  source      = "./modules/vpc"
+  source       = "./modules/vpc"
   project_name = var.project_name
   aws_region   = var.aws_region
 }
@@ -18,13 +18,15 @@ module "ecr" {
 }
 
 module "iam" {
-  source             = "./modules/iam"
-  project_name       = var.project_name
-  aws_account_id     = var.aws_account_id
-  aws_region         = var.aws_region
-  github_repo        = var.github_repo
-  s3_bucket_arn      = module.s3.bucket_arn
-  ecr_repository_arn = module.ecr.repository_arn
+  source                 = "./modules/iam"
+  project_name           = var.project_name
+  aws_account_id         = var.aws_account_id
+  aws_region             = var.aws_region
+  github_actions_enabled = true
+  github_repo            = var.github_repo
+  s3_bucket_arn          = module.s3.bucket_arn
+  ecr_repository_arn     = module.ecr.repository_arn
+  sns_topic_arn          = local.sns_topic_arn
 }
 
 module "ec2" {
@@ -39,8 +41,8 @@ module "ec2" {
   user_data_script      = local.user_data_rendered
   vpc_id                = module.vpc.vpc_id
   subnet_id             = module.vpc.subnet_ids[0]
-  prefect_api_url = var.prefect_api_url
-  prefect_api_key = var.prefect_api_key
+  prefect_api_url       = var.prefect_api_url
+  prefect_api_key       = var.prefect_api_key
 
   depends_on = [module.iam]
 }
@@ -68,18 +70,20 @@ module "monitoring" {
 }
 
 locals {
+  sns_topic_arn = var.sns_topic_arn != "" ? var.sns_topic_arn : "arn:aws:sns:${var.aws_region}:${var.aws_account_id}:${var.project_name}-alarms"
+
   user_data_rendered = templatefile(
     "${path.module}/user_data.sh.tftpl",
     {
-      rds_endpoint   = module.rds.endpoint
-      rds_db_name    = var.rds_db_name
-      rds_username   = var.rds_username
-      rds_password   = var.rds_password
-      s3_bucket_name = module.s3.bucket_name
-      mlflow_port    = var.mlflow_port
-      api_port       = var.api_port
-      project_name   = var.project_name
-      aws_region     = var.aws_region
+      rds_endpoint    = module.rds.endpoint
+      rds_db_name     = var.rds_db_name
+      rds_username    = var.rds_username
+      rds_password    = var.rds_password
+      s3_bucket_name  = module.s3.bucket_name
+      mlflow_port     = var.mlflow_port
+      api_port        = var.api_port
+      project_name    = var.project_name
+      aws_region      = var.aws_region
       prefect_api_url = var.prefect_api_url
       prefect_api_key = var.prefect_api_key
     }

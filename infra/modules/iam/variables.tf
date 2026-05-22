@@ -15,6 +15,16 @@ variable "github_repo" {
   default = ""
 }
 
+variable "github_actions_enabled" {
+  type    = bool
+  default = false
+}
+
+variable "sns_topic_arn" {
+  type    = string
+  default = ""
+}
+
 variable "s3_bucket_arn" {
   type = string
 }

@@ -58,6 +58,44 @@ Practical notes from migrating a Heart Disease Prediction MLOps pipeline from lo
 | [04 — Pipeline Integration](phase6/04-pipeline-integration.md) | Adding monitoring to Prefect flows, task design, error handling |
 | [05 — Troubleshooting Monitoring](phase6/05-troubleshooting-monitoring.md) | Common errors, debugging techniques, fixes |
 
+## Phase 7 — CI/CD with GitHub Actions
+
+| File | Topic |
+|------|-------|
+| [Phase 7 Overview](phase7/README.md) | Architecture, quick start, verification checklist |
+| [Phase 7 Implementation Summary](phase7/IMPLEMENTATION_SUMMARY.md) | What was built, configuration, verification commands |
+| [Phase 7 Documentation](phase7/phase7-overview.md) | High-level overview, what you need to do, architecture |
+| [01 — GitHub Actions & OIDC](phase7/01-github-actions-oidc.md) | GitHub Actions basics, OIDC authentication, IAM trust |
+| [02 — CI Workflow](phase7/02-ci-workflow.md) | Linting with flake8, black, isort, placeholder tests |
+| [03 — CD Workflow](phase7/03-cd-workflow.md) | Docker builds, ECR push, SSH deploy, health checks |
+| [04 — Terraform Automation](phase7/04-terraform-automation.md) | Automated plan/apply, PR comments, infrastructure CI/CD |
+| [05 — Rollback & Notifications](phase7/05-rollback-and-notifications.md) | Auto-rollback logic, commit SHA tagging, SNS email alerts |
+| [06 — Troubleshooting CI/CD](phase7/06-troubleshooting-cicd.md) | Common errors, debugging techniques, emergency procedures |
+
+## Phase 8 — Comprehensive Testing with pytest ✅ COMPLETE
+
+| File | Topic |
+|------|-------|
+| [Phase 8 Overview](phase8/README.md) | Architecture, quick start, verification checklist |
+| [Phase 8 Implementation Summary](phase8/IMPLEMENTATION_SUMMARY.md) | What was built, test structure, verification commands |
+| [Phase 8 Overview](phase8/phase8-overview.md) | High-level summary, test philosophy, 31 test functions |
+| [01 — pytest Fundamentals](phase8/01-pytest-fundamentals.md) | Fixtures, conftest.py, tmp_path, monkeypatch, scopes |
+| [02 — Mocking AWS Services](phase8/02-mocking-aws-services.md) | moto for S3/CloudWatch, mocking MLflow with SQLite backend |
+| [03 — Testing Data Pipelines](phase8/03-testing-data-pipelines.md) | Data loading, preprocessing, S3 handling, train/test split |
+| [04 — Testing ML Training](phase8/04-testing-ml-training.md) | Model training, metrics logging, best model selection, CV |
+| [05 — Testing API with TestClient](phase8/05-testing-api-with-testclient.md) | FastAPI testing without server, mocking model loading |
+| [06 — Testing Prefect Flows](phase8/06-testing-prefect-flows.md) | Flow composition, task mocking, orchestration testing |
+| [07 — Testing Monitoring](phase8/07-testing-monitoring.md) | Evidently drift detection, CloudWatch metrics, S3 uploads |
+| [08 — Troubleshooting Tests](phase8/08-troubleshooting-tests.md) | Common test failures, debugging techniques, fixes |
+
+## Phase 9 — Security Hardening
+
+| File | Topic |
+|------|-------|
+| [Phase 9 Overview](phase9/README.md) | Architecture, quick start, verification checklist |
+| [Phase 9 Implementation Summary](phase9/IMPLEMENTATION_SUMMARY.md) | Complete setup guide with all CLI commands |
+| [Phase 9 Documentation](phase9/phase9-overview.md) | Security architecture, decisions, ongoing practices |
+
 ---
 
 ## How to Use These

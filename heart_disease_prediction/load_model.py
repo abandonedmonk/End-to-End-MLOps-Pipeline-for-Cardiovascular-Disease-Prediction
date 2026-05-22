@@ -55,6 +55,26 @@ def load_model(
     print(f"✅ Model {model_name} v{latest_version.version} moved to Production.")
     return model_name, latest_version.version
 
+
+def load_champion_model(paths: Dict | None = None):
+    """Load the registered champion model, falling back to Production stage."""
+    paths = paths or {}
+    model_name = paths.get("model_name", MODEL_NAME)
+    tracking_uri = paths.get("mlflow_tracking_uri", MLFLOW_TRACKING_URI)
+
+    mlflow.set_tracking_uri(tracking_uri)
+    errors = []
+    for model_uri in (f"models:/{model_name}@champion", f"models:/{model_name}/Production"):
+        try:
+            return mlflow.sklearn.load_model(model_uri)
+        except Exception as exc:
+            errors.append(f"{model_uri}: {exc}")
+
+    raise ValueError(
+        f"No champion or Production model found for {model_name}. "
+        f"Attempts: {'; '.join(errors)}"
+    )
+
 if __name__ == "__main__":
     if '__file__' in globals():
         project_root = Path(__file__).resolve().parents[1]

@@ -11,6 +11,7 @@ from typing import Union, Dict, Tuple
 from datetime import date
 import os
 from dotenv import load_dotenv
+import logging
 
 load_dotenv()
 
@@ -25,7 +26,10 @@ def register_model(
     paths: Dict | None = None
 ) -> Dict:
     """Register the model and DictVectorizer with MLflow."""
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except RuntimeError:
+        logger = logging.getLogger(__name__)
     paths = paths or {}
     try:
         tracking_uri = paths.get("mlflow_tracking_uri", MLFLOW_TRACKING_URI)
@@ -39,12 +43,17 @@ def register_model(
 
         # Evaluate based on Accuracy
         experiment = client.get_experiment_by_name(experiment_name)
+        if experiment is None:
+            raise ValueError(f"No MLflow experiment found named {experiment_name}")
         best_run = client.search_runs(
             experiment_ids=experiment.experiment_id,
             run_view_type=ViewType.ACTIVE_ONLY,
             max_results=1,
             order_by=["metrics.accuracy DESC"]
-        )[0]
+        )
+        if not best_run:
+            raise ValueError(f"No MLflow runs found for experiment {experiment_name}")
+        best_run = best_run[0]
 
         # mlflow.sklearn.log_model(
         #     preprocessor, 
@@ -55,9 +64,15 @@ def register_model(
             model_uri=f"runs:/{best_run.info.run_id}/model",
             name=model_name
         )
+        client.set_registered_model_alias(
+            name=model_name,
+            alias="champion",
+            version=result.version,
+        )
         paths["model_name"] = model_name
         paths["mlflow_tracking_uri"] = tracking_uri
         paths["experiment_name"] = experiment_name
+        paths["model_uri"] = f"models:/{model_name}@champion"
 
         logger.info(f"✅ Model registered successfully: version {result.version}")
 
@@ -65,5 +80,4 @@ def register_model(
 
     except Exception as e:
         logger.error(f"❌ Model registration failed: {e}")
-
-
+        raise

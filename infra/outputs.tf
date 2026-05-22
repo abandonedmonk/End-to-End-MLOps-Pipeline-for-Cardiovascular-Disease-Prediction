@@ -47,3 +47,8 @@ output "monitoring_alerts_topic_arn" {
   description = "SNS topic ARN for monitoring alarms"
   value       = module.monitoring.alerts_topic_arn
 }
+
+output "sns_topic_arn" {
+  description = "SNS topic ARN for GitHub Actions deploy notifications"
+  value       = local.sns_topic_arn
+}

@@ -1,0 +1,78 @@
+# Pre-commit hooks configuration for security hardening
+# Install: pre-commit install
+# Update: pre-commit autoupdate
+# Run all: pre-commit run --all-files
+
+repos:
+  # Secret detection - blocks commits with potential secrets
+  - repo: https://github.com/Yelp/detect-secrets
+    rev: v1.5.0
+    hooks:
+      - id: detect-secrets
+        args: ['--baseline', '.secrets.baseline']
+        exclude: package.lock.json
+
+  # General file checks
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.6.0
+    hooks:
+      # Prevent committing to main branch accidentally
+      - id: no-commit-to-branch
+        args: ['--branch', 'main']
+      
+      # Check for files that should not be committed
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      
+      # Check for merge conflict markers
+      - id: check-merge-conflict
+      
+      # Check for debug statements
+      - id: debug-statements
+      
+      # Check JSON syntax
+      - id: check-json
+      
+      # Check YAML syntax  
+      - id: check-yaml
+        exclude: ^.github/workflows/
+      
+      # Check TOML syntax
+      - id: check-toml
+      
+      # Trim trailing whitespace
+      - id: trailing-whitespace
+      
+      # Ensure files end with newline
+      - id: end-of-file-fixer
+      
+      # Check for AWS credentials in files
+      - id: detect-aws-credentials
+        args: ['--allow-missing-credentials']
+
+  # Python security linter
+  - repo: https://github.com/PyCQA/bandit
+    rev: 1.7.9
+    hooks:
+      - id: bandit
+        args: ['-c', 'pyproject.toml']
+        additional_dependencies: ['bandit[toml]']
+
+  # Python formatting and linting (from Phase 7)
+  - repo: https://github.com/psf/black
+    rev: 24.4.2
+    hooks:
+      - id: black
+        language_version: python3
+
+  - repo: https://github.com/PyCQA/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+
+  - repo: https://github.com/pycqa/flake8
+    rev: 7.1.0
+    hooks:
+      - id: flake8
+        additional_dependencies:
+          - flake8-docstrings

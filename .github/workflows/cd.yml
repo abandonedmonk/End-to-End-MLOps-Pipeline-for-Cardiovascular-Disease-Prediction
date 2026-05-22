@@ -1,0 +1,179 @@
+name: CD
+
+on:
+  push:
+    branches: [main, aws_migration]
+
+env:
+  AWS_REGION: us-east-1
+  ECR_REPOSITORY: heart-disease-mlops-api
+  EC2_HOST: 32.196.26.238
+  EC2_USER: ubuntu
+  MLFLOW_TRACKING_URI: http://10.0.0.186:5000
+  MODEL_NAME: best_model_2025-07-30
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+
+    outputs:
+      image_tag: ${{ steps.build.outputs.image_tag }}
+      previous_image: ${{ steps.deploy.outputs.previous_image }}
+      deploy_status: ${{ steps.healthcheck.outputs.status }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image
+        id: build
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: sha-${{ github.sha }}
+        run: |
+          docker build -t "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" .
+          docker tag "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+          docker push "$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+
+          echo "image_tag=$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+          echo "image_uri=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.EC2_SSH_KEY }}
+
+      - name: Add EC2 to known hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H "$EC2_HOST" >> ~/.ssh/known_hosts
+
+      - name: Deploy to EC2
+        id: deploy
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ steps.build.outputs.image_tag }}
+        run: |
+          PREVIOUS_IMAGE=$(ssh "$EC2_USER@$EC2_HOST" \
+            "sudo docker inspect fastapi --format '{{.Config.Image}}' 2>/dev/null || echo none")
+
+          echo "previous_image=$PREVIOUS_IMAGE" >> "$GITHUB_OUTPUT"
+
+          ssh "$EC2_USER@$EC2_HOST" \
+            "AWS_REGION='$AWS_REGION' ECR_REGISTRY='$ECR_REGISTRY' ECR_REPOSITORY='$ECR_REPOSITORY' IMAGE_TAG='$IMAGE_TAG' MLFLOW_TRACKING_URI='$MLFLOW_TRACKING_URI' MODEL_NAME='$MODEL_NAME' bash -s" <<'EOF'
+          set -e
+
+          aws ecr get-login-password --region "$AWS_REGION" | \
+            sudo docker login --username AWS --password-stdin "$ECR_REGISTRY"
+
+          sudo docker pull "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          sudo docker stop fastapi || true
+          sudo docker rm fastapi || true
+
+          sudo docker run -d \
+            --name fastapi \
+            --restart always \
+            -p 8000:8000 \
+            -e MLFLOW_TRACKING_URI="$MLFLOW_TRACKING_URI" \
+            -e MODEL_NAME="$MODEL_NAME" \
+            -e AWS_REGION="$AWS_REGION" \
+            "$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG"
+
+          echo "Deployed image: $IMAGE_TAG"
+          EOF
+
+      - name: Health Check
+        id: healthcheck
+        run: |
+          echo "Waiting for API to start..."
+          sleep 10
+
+          max_retries=5
+          retry_count=0
+
+          while [ "$retry_count" -lt "$max_retries" ]; do
+            response=$(curl -s "http://$EC2_HOST:8000/health" || echo "FAILED")
+
+            if echo "$response" | grep -q '"model_loaded": true'; then
+              echo "Health check passed"
+              echo "status=success" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+
+            echo "Attempt $((retry_count + 1))/$max_retries failed. Retrying..."
+            retry_count=$((retry_count + 1))
+            sleep 10
+          done
+
+          echo "Health check failed after $max_retries attempts"
+          echo "status=failed" >> "$GITHUB_OUTPUT"
+          exit 1
+
+      - name: Rollback on Failure
+        if: failure() && steps.healthcheck.outputs.status == 'failed'
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          PREVIOUS_IMAGE: ${{ steps.deploy.outputs.previous_image }}
+        run: |
+          echo "Deployment failed. Rolling back to previous image..."
+
+          ssh "$EC2_USER@$EC2_HOST" \
+            "AWS_REGION='$AWS_REGION' ECR_REGISTRY='$ECR_REGISTRY' ECR_REPOSITORY='$ECR_REPOSITORY' PREVIOUS_IMAGE='$PREVIOUS_IMAGE' MLFLOW_TRACKING_URI='$MLFLOW_TRACKING_URI' MODEL_NAME='$MODEL_NAME' bash -s" <<'EOF'
+          set -e
+
+          sudo docker stop fastapi || true
+          sudo docker rm fastapi || true
+
+          if [ "$PREVIOUS_IMAGE" != "none" ] && [ -n "$PREVIOUS_IMAGE" ]; then
+            rollback_image="$PREVIOUS_IMAGE"
+          else
+            rollback_image="$ECR_REGISTRY/$ECR_REPOSITORY:latest"
+          fi
+
+          sudo docker run -d \
+            --name fastapi \
+            --restart always \
+            -p 8000:8000 \
+            -e MLFLOW_TRACKING_URI="$MLFLOW_TRACKING_URI" \
+            -e MODEL_NAME="$MODEL_NAME" \
+            -e AWS_REGION="$AWS_REGION" \
+            "$rollback_image"
+
+          echo "Rolled back to: $rollback_image"
+          EOF
+
+      - name: Notify SNS
+        if: always()
+        env:
+          SNS_TOPIC_ARN: ${{ secrets.SNS_TOPIC_ARN }}
+          DEPLOY_STATUS: ${{ steps.healthcheck.outputs.status }}
+          IMAGE_TAG: ${{ steps.build.outputs.image_tag }}
+        run: |
+          if [ "$DEPLOY_STATUS" = "success" ]; then
+            message="Deploy SUCCESS: heart-disease-mlops-api:$IMAGE_TAG"
+          elif [ "$DEPLOY_STATUS" = "failed" ]; then
+            message="Deploy FAILED and rollback attempted: heart-disease-mlops-api:$IMAGE_TAG"
+          else
+            message="Deploy ERROR before health check: heart-disease-mlops-api:$IMAGE_TAG"
+          fi
+
+          aws sns publish \
+            --topic-arn "$SNS_TOPIC_ARN" \
+            --message "$message" \
+            --subject "MLOps Deploy Notification"

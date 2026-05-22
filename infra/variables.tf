@@ -58,7 +58,7 @@ variable "your_ip" {
 variable "github_repo" {
   description = "GitHub repo in org/repo format for OIDC trust policy"
   type        = string
-  default     = ""
+  default     = "abandonedmonk/MLOps-Zoomcamp-Project"
 }
 
 variable "mlflow_port" {
@@ -90,4 +90,10 @@ variable "drift_threshold" {
   description = "CloudWatch alarm threshold for data drift score"
   type        = number
   default     = 0.3
+}
+
+variable "sns_topic_arn" {
+  description = "Existing SNS topic ARN for alarms and deploy notifications. Defaults to project_name-alarms."
+  type        = string
+  default     = ""
 }

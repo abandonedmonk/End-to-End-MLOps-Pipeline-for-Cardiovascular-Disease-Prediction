@@ -1,0 +1,92 @@
+name: Infrastructure
+
+on:
+  pull_request:
+    paths:
+      - "infra/**"
+      - ".github/workflows/infra.yml"
+  push:
+    branches: [main, aws_migration]
+    paths:
+      - "infra/**"
+
+jobs:
+  terraform:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+      pull-requests: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials with OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: us-east-1
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.5.7"
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      - name: Terraform Format Check
+        working-directory: infra
+        run: terraform fmt -check
+
+      - name: Terraform Plan
+        if: github.event_name == 'pull_request'
+        id: plan
+        working-directory: infra
+        continue-on-error: true
+        run: |
+          set +e
+          terraform plan -no-color -input=false > tfplan.txt
+          status=$?
+          cat tfplan.txt
+          {
+            echo "PLAN<<EOF"
+            tail -c 60000 tfplan.txt
+            echo "EOF"
+          } >> "$GITHUB_ENV"
+          exit "$status"
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const outcome = '${{ steps.plan.outcome }}';
+            const icon = outcome === 'success' ? 'PASS' : 'FAIL';
+            const plan = process.env.PLAN || 'No plan output captured.';
+            const output = `#### Terraform Plan
+
+            ${icon} Plan result: ${outcome}
+
+            <details><summary>Show Plan</summary>
+
+            \`\`\`
+            ${plan}
+            \`\`\`
+
+            </details>`;
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            });
+
+      - name: Terraform Apply
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        working-directory: infra
+        run: terraform apply -auto-approve -input=false

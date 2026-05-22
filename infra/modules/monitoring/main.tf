@@ -1,5 +1,5 @@
 resource "aws_sns_topic" "monitoring_alerts" {
-  name = "${var.project_name}-monitoring-alerts"
+  name = "${var.project_name}-alarms"
 }
 
 resource "aws_cloudwatch_dashboard" "monitoring" {

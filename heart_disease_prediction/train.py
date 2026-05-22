@@ -18,6 +18,7 @@ from dotenv import load_dotenv
 
 import yaml
 from mlflow.tracking import MlflowClient
+import logging
 
 load_dotenv()
 
@@ -54,7 +55,10 @@ def train_model(
     Train multiple models, log experiments with MLflow, return best model
     """
 
-    logger = get_run_logger()
+    try:
+        logger = get_run_logger()
+    except RuntimeError:
+        logger = logging.getLogger(__name__)
 
     config = config or {}
 
@@ -77,9 +81,9 @@ def train_model(
     paths["mlflow_db_path"] = paths["mlflow_tracking_uri"]
     paths["artifact_loc"] = paths["mlflow_artifact_root"]
 
+    mlflow.set_tracking_uri(paths["mlflow_tracking_uri"])
     experiment_id = get_or_create_experiment_id(name=paths["experiment_name"], artifact_root=paths["mlflow_artifact_root"])
 
-    mlflow.set_tracking_uri(paths["mlflow_tracking_uri"])
     mlflow.set_experiment(experiment_name=paths["experiment_name"])
     print(f"Experiment ID: {experiment_id}")
 
@@ -92,6 +96,7 @@ def train_model(
     }
 
     best_model = None
+    best_pipeline = None
     best_score = -1
 
     for name, model in models.items():
@@ -129,6 +134,7 @@ def train_model(
             if acc > best_score:
                 best_score = acc
                 best_model = model
+                best_pipeline = pipeline
 
     logger.info(f"✅ Best model selected with accuracy {best_score:.4f}")
-    return best_model, pipeline, paths
+    return best_model, best_pipeline, paths
