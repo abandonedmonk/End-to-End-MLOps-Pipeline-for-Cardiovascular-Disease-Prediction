@@ -9,7 +9,7 @@ env:
   ECR_REPOSITORY: heart-disease-mlops-api
   EC2_HOST: 32.196.26.238
   EC2_USER: ubuntu
-  MLFLOW_TRACKING_URI: http://10.0.0.186:5000
+  MLFLOW_TRACKING_URI: http://10.0.0.80:5000
   MODEL_NAME: best_model_2025-07-30
 
 jobs:

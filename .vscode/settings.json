@@ -1,0 +1,15 @@
+{
+    "python-envs.defaultEnvManager": "ms-python.python:poetry",
+    "python-envs.defaultPackageManager": "ms-python.python:poetry",
+    "chat.tools.terminal.autoApprove": {
+        "/^python -m py_compile api/main\\.py$/": {
+            "approve": true,
+            "matchCommandLine": true
+        },
+        "awk": true,
+        "ssh-keyscan": true,
+        "true": true,
+        "prefect": true
+    },
+    "makefile.configureOnOpen": false
+}
