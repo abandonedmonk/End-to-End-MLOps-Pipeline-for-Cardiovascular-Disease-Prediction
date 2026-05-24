@@ -135,7 +135,7 @@ A production-grade MLOps pipeline for heart disease prediction, migrated from lo
    └────────────────────────────────────────────────────────────────────┘
 ```
 
-![Architecture diagram](assets/images/architecture.svg)
+![Architecture diagram](assets/images/system_design_archi.png)
 
 ## 🔧 Technical Stack
 
