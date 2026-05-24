@@ -6,6 +6,8 @@ resource "aws_ecr_repository" "main" {
     scan_on_push = true
   }
 
+  force_delete = true  # Allows terraform destroy to delete non-empty repositories
+
   tags = {
     Name = var.repository_name
   }
